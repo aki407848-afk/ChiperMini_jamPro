@@ -1,0 +1,59 @@
+name: ChiperMini_jamPro Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+        
+    - name: Install dependencies
+      run: pio pkg install
+        
+    - name: Build firmware
+      run: pio run -e esp32-s3-devkitc-1-n16r8
+        
+    - name: Collect binaries
+      run: |
+        mkdir -p artifacts
+        cp .pio/build/esp32-s3-devkitc-1-n16r8/bootloader.bin artifacts/
+        cp .pio/build/esp32-s3-devkitc-1-n16r8/partitions.bin artifacts/
+        cp .pio/build/esp32-s3-devkitc-1-n16r8/firmware.bin artifacts/
+        ls -la artifacts/
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ChiperMini_jamPro_N16R8_binaries
+        path: artifacts/
+        retention-days: 30
+        if-no-files-found: error
+        
+    - name: Build summary
+      run: |
+        echo "## ✅ Build Complete (ESP32-S3-N16R8)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| File | Address | Size |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|---------|------|" >> $GITHUB_STEP_SUMMARY
+        echo "| bootloader.bin | 0x0000 | \$(stat -c%s artifacts/bootloader.bin) bytes |" >> $GITHUB_STEP_SUMMARY
+        echo "| partitions.bin | 0x8000 | \$(stat -c%s artifacts/partitions.bin) bytes |" >> $GITHUB_STEP_SUMMARY
+        echo "| firmware.bin | 0x10000 | \$(stat -c%s artifacts/firmware.bin) bytes |" >> $GITHUB_STEP_SUMMARY
